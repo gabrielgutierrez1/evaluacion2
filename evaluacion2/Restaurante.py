@@ -37,13 +37,12 @@ class AplicacionConPestanas(ctk.CTk):
         self.crear_pestanas()
 
     def actualizar_treeview(self):
-
+        # Actualiza el Treeview de la pestaña Stock con los ingredientes del Stock
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-
         for ingrediente in self.stock.lista_ingredientes:
-            self.tree.insert("", "end", values=(ingrediente.nombre,ingrediente.unidad, ingrediente.cantidad))    
+            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad if ingrediente.unidad else '', ingrediente.cantidad))
 
     def on_tab_change(self):
         selected_tab = self.tabview.get()
@@ -106,8 +105,17 @@ class AplicacionConPestanas(ctk.CTk):
         self.actualizar_treeview()   
 
     def cargar_csv(self):
-        pass
-        
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar archivo CSV",
+            filetypes=[("Archivos CSV", "*.csv"), ("Todos los archivos", "*.*")]
+        )
+        if not file_path:
+            return
+
+        self.df_csv = pd.read_csv(file_path)
+        self.mostrar_dataframe_en_tabla(self.df_csv)
+        self.boton_agregar_stock.configure(command=self.agregar_csv_al_stock)
+    
     def mostrar_dataframe_en_tabla(self, df):
         if self.tabla_csv:
             self.tabla_csv.destroy()
@@ -356,13 +364,53 @@ class AplicacionConPestanas(ctk.CTk):
             return False
 
     def ingresar_ingrediente(self):
-        pass
+        nombre = self.entry_nombre.get().strip()
+        unidad = self.combo_unidad.get().strip()
+        cantidad = self.entry_cantidad.get().strip()
+
+        if not nombre:
+            CTkMessagebox(title="Error", message="Ingrese un nombre de ingrediente.", icon="warning")
+            return
+
+        # intentar convertir la cantidad a número
+        try:
+            cantidad_val = float(cantidad)
+        except Exception:
+            CTkMessagebox(title="Error", message="La cantidad debe ser un número.", icon="warning")
+            return
+
+        ingrediente = Ingrediente(nombre=nombre, unidad=unidad if unidad else None, cantidad=cantidad_val)
+        self.stock.agregar_ingrediente(ingrediente)
+        CTkMessagebox(title="Ingrediente agregado", message=f"{nombre} agregado al stock.", icon="info")
+        # limpiar campos
+        self.entry_nombre.delete(0, 'end')
+        self.entry_cantidad.delete(0, 'end')
+        self.actualizar_treeview()
 
     def eliminar_ingrediente(self):
-        pass
+        # elimina el ingrediente seleccionado en el treeview
+        selecion = self.tree.selection()
+        if not selecion:
+            CTkMessagebox(title="Error", message="Seleccione un ingrediente para eliminar.", icon="warning")
+            return
+        item = selecion[0]
+        valores = self.tree.item(item, 'values')
+        if not valores:
+            return
+        nombre = valores[0]
+        eliminado = self.stock.eliminar_ingrediente(nombre)
+        if eliminado:
+            CTkMessagebox(title="Eliminado", message=f"{nombre} eliminado del stock.", icon="info")
+        else:
+            CTkMessagebox(title="Error", message=f"No se pudo eliminar {nombre}.", icon="warning")
+        self.actualizar_treeview()
 
     def actualizar_treeview(self):
-        pass
+        # Actualiza el Treeview de la pestaña Stock con los ingredientes del Stock
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        for ingrediente in self.stock.verificar_stock():
+            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad if ingrediente.unidad else '', ingrediente.cantidad))
 
 
 if __name__ == "__main__":
