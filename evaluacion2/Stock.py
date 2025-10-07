@@ -12,6 +12,10 @@ class Stock:
 
     # agregar ingrediente a la lista y al csv
     def agregar_ingrediente(self, ingrediente: Ingrediente):
+        for ing in self.lista_ingredientes:
+            if ing.nombre.lower()  == ingrediente.nombre.lower():
+                ing.cantidad += ingrediente.cantidad
+                return True
         self.lista_ingredientes.append(ingrediente)
         self.actualizar_csv()
         return True
