@@ -36,13 +36,19 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.crear_pestanas()
 
+        self._boleta_mostrable= False
+
     def actualizar_treeview(self):
-        # Actualiza el Treeview de la pestaña Stock con los ingredientes del Stock
+
         for item in self.tree.get_children():
             self.tree.delete(item)
 
         for ingrediente in self.stock.lista_ingredientes:
-            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad if ingrediente.unidad else '', ingrediente.cantidad))
+            try:
+                cantidad_mostrada = ingrediente.cantidad_str()
+            except Exception:
+                cantidad_mostrada = ingrediente.cantidad
+            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad if ingrediente.unidad else '', cantidad_mostrada))
 
     def on_tab_change(self):
         selected_tab = self.tabview.get()
@@ -58,7 +64,8 @@ class AplicacionConPestanas(ctk.CTk):
             print('Carta restorante')
         if selected_tab == "Boleta":
             self.actualizar_treeview()
-            print('Boleta')       
+            print('Boleta')  
+
     def crear_pestanas(self):
         self.tab3 = self.tabview.add("carga de ingredientes")  
         self.tab1 = self.tabview.add("Stock")
@@ -97,11 +104,12 @@ class AplicacionConPestanas(ctk.CTk):
             return
         for _, row in self.df_csv.iterrows():
             nombre = str(row['nombre'])
-            cantidad = str(row['cantidad'])
-            unidad = str(row['unidad'])
+            cantidad = row['cantidad']
+            unidad = row.get('unidad', '') if 'unidad' in row.index else ''
             ingrediente = Ingrediente(nombre=nombre,unidad=unidad,cantidad=cantidad)
             self.stock.agregar_ingrediente(ingrediente)
-        CTkMessagebox(title="Stock Actualizado", message="Ingredientes agregados al stock correctamente.", icon="info")
+
+        CTkMessagebox(title="Stock Actualizado", message="Ingredientes agregados al stock correctamente.", icon="check")
         self.actualizar_treeview()   
 
     def cargar_csv(self):
@@ -153,7 +161,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.pdf_frame_carta.pack(expand=True, fill="both", padx=10, pady=10)
 
         self.pdf_viewer_carta = None
-        
+
     def generar_y_mostrar_carta_pdf(self):
         try:
             pdf_path = "carta.pdf"
@@ -180,7 +188,6 @@ class AplicacionConPestanas(ctk.CTk):
     def _configurar_pestana_ver_boleta(self):
         contenedor = ctk.CTkFrame(self.tab5)
         contenedor.pack(expand=True, fill="both", padx=10, pady=10)
-    
         boton_boleta = ctk.CTkButton(
             contenedor,
             text="Mostrar Boleta (PDF)",
@@ -190,22 +197,48 @@ class AplicacionConPestanas(ctk.CTk):
     
         self.pdf_frame_boleta = ctk.CTkFrame(contenedor)
         self.pdf_frame_boleta.pack(expand=True, fill="both", padx=10, pady=10)
-    
         self.pdf_viewer_boleta = None
+        self._boleta_mostrable = False
         
-
     def mostrar_boleta(self):
-        pass
+
+        if not self._boleta_mostrable:
+            CTkMessagebox(title="Boleta", message="Primero genere la boleta usando 'Generar Boleta'.", icon="info")
+            return
+        
+        try:
+            pdf_path = os.path.abspath("boleta.pdf")
+            if not os.path.exists(pdf_path):
+                CTkMessagebox(title="Boleta", message="No se encontró el archivo 'boleta.pdf'. Genérelo primero.", icon="warning")
+                # desactivar el flag para evitar futuros intentos accidentales
+                self._boleta_mostrable = False
+                return
+
+            if self.pdf_viewer_boleta is not None:
+                try:
+                    self.pdf_viewer_boleta.pack_forget()
+                    self.pdf_viewer_boleta.destroy()
+                except Exception:
+                    pass
+
+                self.pdf_viewer_boleta = None
+
+            self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=pdf_path)
+            self.pdf_viewer_boleta.pack(expand=True, fill="both")
+
+        except Exception as e:
+            CTkMessagebox(title="Error Boleta", message=f"No se pudo mostrar la boleta: {e}", icon="warning")
+        finally:
+            self._boleta_mostrable = False
 
     def configurar_pestana1(self):
-        # Dividir la Pestaña 1 en dos frames
+
         frame_formulario = ctk.CTkFrame(self.tab1)
         frame_formulario.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
         frame_treeview = ctk.CTkFrame(self.tab1)
         frame_treeview.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
-        # Formulario en el primer frame
         label_nombre = ctk.CTkLabel(frame_formulario, text="Nombre del Ingrediente:")
         label_nombre.pack(pady=5)
         self.entry_nombre = ctk.CTkEntry(frame_formulario)
@@ -238,46 +271,130 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.boton_generar_menu = ctk.CTkButton(frame_treeview, text="Generar Menú", command=self.generar_menus)
         self.boton_generar_menu.pack(pady=10)
+
     def tarjeta_click(self, event, menu):
+
+        try:
+            self.stock.cargar_desde_csv()
+        except Exception:
+            pass
+
         suficiente_stock = True
-        if self.stock.lista_ingredientes==[]:
-            suficiente_stock=False
+        if not self.stock.lista_ingredientes:
+            suficiente_stock = False
+
         for ingrediente_necesario in menu.ingredientes:
+            encontrado_y_suficiente = False
             for ingrediente_stock in self.stock.lista_ingredientes:
-                if ingrediente_necesario.nombre == ingrediente_stock.nombre:
-                    if int(ingrediente_stock.cantidad) < int(ingrediente_necesario.cantidad):
-                        suficiente_stock = False
-                        break
-            if not suficiente_stock:
+                if ingrediente_necesario.nombre.strip().lower() == str(ingrediente_stock.nombre).strip().lower():
+                    try:
+                        if float(ingrediente_stock.cantidad) >= float(ingrediente_necesario.cantidad):
+                            encontrado_y_suficiente = True
+                            break
+                    except Exception:
+                        encontrado_y_suficiente = False
+            if not encontrado_y_suficiente:
+                suficiente_stock = False
                 break
-        
+
         if suficiente_stock:
+
             for ingrediente_necesario in menu.ingredientes:
                 for ingrediente_stock in self.stock.lista_ingredientes:
-                    if ingrediente_necesario.nombre == ingrediente_stock.nombre:
-                        ingrediente_stock.cantidad = str(int(ingrediente_stock.cantidad) - int(ingrediente_necesario.cantidad))
-            
+                    if ingrediente_necesario.nombre.strip().lower() == str(ingrediente_stock.nombre).strip().lower():
+                        try:
+                            ingrediente_stock.cantidad = float(ingrediente_stock.cantidad) - float(ingrediente_necesario.cantidad)
+                        except Exception:
+                            pass
+
+            try:
+                self.stock.actualizar_csv()
+            except Exception:
+                pass
+
             self.pedido.agregar_menu(menu)
             self.actualizar_treeview_pedido()
             total = self.pedido.calcular_total()
-            self.label_total.configure(text=f"Total: ${total:.2f}")
+            try:
+                self.label_total.configure(text=f"Total: ${total:.2f}")
+            except Exception:
+                pass
         else:
             CTkMessagebox(title="Stock Insuficiente", message=f"No hay suficientes ingredientes para preparar el menú '{menu.nombre}'.", icon="warning")
     
     def cargar_icono_menu(self, ruta_icono):
-        imagen = Image.open(ruta_icono)
+
+        if not ruta_icono:
+            raise FileNotFoundError("ruta de icono vacía")
+        path = ruta_icono
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(__file__), ruta_icono)
+        imagen = Image.open(path).convert('RGBA')
+        # CTkImage acepta PIL Image como primer argumento
         icono_menu = ctk.CTkImage(imagen, size=(64, 64))
         return icono_menu
-
     
     def generar_menus(self):
-        pass
+        
+        try:
+            for child in tarjetas_frame.winfo_children():
+                child.destroy()
+            try:
+                CTkMessagebox(title="Menú generado",message="Se generó el menú exitosamente", icon="check")
+            except Exception:
+                CTkMessagebox(title="Error inesperado", message=f"No se ha podido generar el menú.", icon="warning")
+        except Exception:
+            pass
+
+        # usar contador para posiciones y wrap a 4 columnas
+        self.menus_creados = 0
+        max_cols = 4
+        for idx, menu in enumerate(self.menus):
+            try:
+                # crear tarjeta y posicionar en una rejilla
+                fila = idx // max_cols
+                columna = idx % max_cols
+                self.crear_tarjeta(menu, row=fila, column=columna)
+                self.menus_creados += 1
+            except Exception as e:
+                print(f"Error creando tarjeta para {getattr(menu,'nombre',str(menu))}: {e}")
 
     def eliminar_menu(self):
-        pass
+        selecion = self.treeview_menu.selection()
+        if not selecion:
+            CTkMessagebox(title="Error", message="Seleccione un elemento del pedido para eliminar.", icon="warning")
+            return
+        
+        item = selecion[0]
+        valores = self.treeview_menu.item(item, 'values')
+        if not valores:
+            return
+        
+        nombre = valores[0]
+        self.pedido.eliminar_menu(nombre)
+        self.actualizar_treeview_pedido()
+        total = self.pedido.calcular_total()
+        try:
+            self.label_total.configure(text=f"Total: ${total:.2f}")
+        except Exception:
+            pass
 
     def generar_boleta(self):
-        pass
+        try:
+            if not self.pedido.menus:
+                CTkMessagebox(title="Boleta", message="El pedido está vacío. Agrega elementos antes de generar la boleta.", icon="warning")
+                return
+
+            facade = BoletaFacade(self.pedido)
+            resultado = facade.generar_boleta()
+            # mostrar mensaje de éxito
+            CTkMessagebox(title="Boleta", message=resultado, icon="info")
+
+            self._boleta_mostrable = True
+            
+
+        except Exception as e:
+            CTkMessagebox(title="Error Boleta", message=f"No se pudo generar la boleta: {e}", icon="warning")
 
     def configurar_pestana2(self):
         frame_superior = ctk.CTkFrame(self.tab2)
@@ -308,10 +425,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.boton_generar_boleta=ctk.CTkButton(frame_inferior,text="Generar Boleta",command=self.generar_boleta)
         self.boton_generar_boleta.pack(side="bottom",pady=10)
 
-    def crear_tarjeta(self, menu):
-        num_tarjetas = len(self.menus_creados)
-        fila = 0
-        columna = num_tarjetas
+    def crear_tarjeta(self, menu, row=0, column=0):
 
         tarjeta = ctk.CTkFrame(
             tarjetas_frame,
@@ -322,9 +436,10 @@ class AplicacionConPestanas(ctk.CTk):
             height=140,
             fg_color="gray",
         )
-        tarjeta.grid(row=fila, column=columna, padx=15, pady=15, sticky="nsew")
+        tarjeta.grid(row=row, column=column, padx=15, pady=15, sticky="nsew")
 
-        tarjeta.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))
+        # capturar menu como valor por defecto para evitar problemas en bucles
+        tarjeta.bind("<Button-1>", lambda event, m=menu: self.tarjeta_click(event, m))
         tarjeta.bind("<Enter>", lambda event: tarjeta.configure(border_color="#FF0000"))
         tarjeta.bind("<Leave>", lambda event: tarjeta.configure(border_color="#4CAF50"))
 
@@ -336,7 +451,7 @@ class AplicacionConPestanas(ctk.CTk):
                 )
                 imagen_label.image = icono
                 imagen_label.pack(anchor="center", pady=5, padx=10)
-                imagen_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))
+                imagen_label.bind("<Button-1>", lambda event, m=menu: self.tarjeta_click(event, m))
             except Exception as e:
                 print(f"No se pudo cargar la imagen '{menu.icono_path}': {e}")
 
@@ -348,7 +463,7 @@ class AplicacionConPestanas(ctk.CTk):
             bg_color="transparent",
         )
         texto_label.pack(anchor="center", pady=1)
-        texto_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))
+        texto_label.bind("<Button-1>", lambda event, m=menu: self.tarjeta_click(event, m))
 
     def validar_nombre(self, nombre):
         if re.match(r"^[a-zA-Z\s]+$", nombre):
@@ -358,11 +473,16 @@ class AplicacionConPestanas(ctk.CTk):
             return False
 
     def validar_cantidad(self, cantidad):
-        if cantidad.isdigit():
+        if isinstance(cantidad, (int, float)):
             return True
-        else:
-            CTkMessagebox(title="Error de Validación", message="La cantidad debe ser un número entero positivo.", icon="warning")
-            return False
+        
+        if isinstance(cantidad, str):
+            texto = cantidad.replace(',', '.').strip()
+            if re.fullmatch(r"\+?\d+(?:\.\d+)?", texto):
+                return True
+            
+        CTkMessagebox(title="Error de Validación", message="La cantidad debe ser un número (entero o decimal).", icon="warning")
+        return False
 
     def ingresar_ingrediente(self):
         nombre = self.entry_nombre.get().strip()
@@ -373,7 +493,6 @@ class AplicacionConPestanas(ctk.CTk):
             CTkMessagebox(title="Error", message="Ingrese un nombre de ingrediente.", icon="warning")
             return
 
-        # intentar convertir la cantidad a número
         try:
             cantidad_val = float(cantidad)
         except Exception:
@@ -382,14 +501,14 @@ class AplicacionConPestanas(ctk.CTk):
 
         ingrediente = Ingrediente(nombre=nombre, unidad=unidad if unidad else None, cantidad=cantidad_val)
         self.stock.agregar_ingrediente(ingrediente)
-        CTkMessagebox(title="Ingrediente agregado", message=f"{nombre} agregado al stock.", icon="info")
-        # limpiar campos
+        CTkMessagebox(title="Ingrediente agregado", message=f"{nombre.capitalize()} agregado al stock.", icon="check")
+    
         self.entry_nombre.delete(0, 'end')
         self.entry_cantidad.delete(0, 'end')
         self.actualizar_treeview()
 
     def eliminar_ingrediente(self):
-        # elimina el ingrediente seleccionado en el treeview
+        
         selecion = self.tree.selection()
         if not selecion:
             CTkMessagebox(title="Error", message="Seleccione un ingrediente para eliminar.", icon="warning")
@@ -401,18 +520,21 @@ class AplicacionConPestanas(ctk.CTk):
         nombre = valores[0]
         eliminado = self.stock.eliminar_ingrediente(nombre)
         if eliminado:
-            CTkMessagebox(title="Eliminado", message=f"{nombre} eliminado del stock.", icon="info")
+            CTkMessagebox(title="Eliminado", message=f"{nombre.capitalize()} eliminado del stock.", icon="info")
         else:
             CTkMessagebox(title="Error", message=f"No se pudo eliminar {nombre}.", icon="warning")
         self.actualizar_treeview()
 
     def actualizar_treeview(self):
-        # Actualiza el Treeview de la pestaña Stock con los ingredientes del Stock
         for item in self.tree.get_children():
             self.tree.delete(item)
-        for ingrediente in self.stock.verificar_stock():
-            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad if ingrediente.unidad else '', ingrediente.cantidad))
 
+        for ingrediente in self.stock.verificar_stock():
+            try:
+                cantidad_mostrada = ingrediente.cantidad_str()
+            except Exception:
+                cantidad_mostrada = ingrediente.cantidad
+            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad if ingrediente.unidad else '', cantidad_mostrada))
 
 if __name__ == "__main__":
     import customtkinter as ctk

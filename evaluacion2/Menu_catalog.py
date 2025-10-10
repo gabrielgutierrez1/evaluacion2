@@ -21,7 +21,7 @@ def get_default_menus() -> List[IMenu]:
         CrearMenu(
             "Bepis",
             [
-                Ingrediente("Bepis","unid",1)
+                Ingrediente("Pepsi","unid",1)
             ],
             precio=1200,
             icono_path="IMG/icono_cola_64x64.png"
@@ -31,12 +31,13 @@ def get_default_menus() -> List[IMenu]:
             [
                 Ingrediente("Papas","kg",0.2),
                 Ingrediente("Carne de vacuno","kg",0.1),
-                Ingrediente("Huevo","unid",2),
+                Ingrediente("Huevos","unid",2),
                 Ingrediente("Cebolla","kg",0.05),
             ],
             precio=6500,
             icono_path="IMG/icono_chorrillana_64x64.png"
         ),
+
         CrearMenu(
             "Papas fritas",
             [
@@ -48,10 +49,21 @@ def get_default_menus() -> List[IMenu]:
 
 
         CrearMenu(
+            "Coca-cola",
+            [
+    
+                Ingrediente( "coca cola", "unid", "1"),
+            ],
+        precio=1200,
+        icono_path="IMG/icono_cola_lata_64x64.png"
+        
+        ),
+
+        CrearMenu(
             "Hamburguesa",
             [
                 Ingrediente("Pan de hamburguesa", "unid", 1),
-                Ingrediente("Lámina de queso", "unid", 1),
+                Ingrediente("Lamina de queso", "unid", 1),
                 Ingrediente("Churrasco de carne", "unid", 1),
             ],
             precio=3500,
@@ -59,35 +71,12 @@ def get_default_menus() -> List[IMenu]:
         ),
 
         CrearMenu(
-            "Panqueques",
+            "empanada de queso",
             [
-                Ingrediente("Panqueques", "unid", 2),
-                Ingrediente("Manjar", "porción", 1),
-                Ingrediente("Azúcar flor", "porción", 1),
+                Ingrediente("masa de empanada","unid", 1),
+                Ingrediente("queso","unid", 1),
             ],
-            precio=2000,
-            icono_path="IMG/icono_panqueques_64x64.png",
-        ),
-
-        CrearMenu(
-            "Pollo frito",
-            [
-                Ingrediente("Presa de pollo", "unid", 1),
-                Ingrediente("Porción de harina", "porción", 1),
-                Ingrediente("Porción de aceite", "porción", 1),
-            ],
-            precio=2800,
-            icono_path="IMG/icono_pollofrito_64x64.png",
-        ),
-
-        CrearMenu(
-            "Ensalada mixta",
-            [
-                Ingrediente("Lechuga", "unid", 1),
-                Ingrediente("Tomate", "unid", 1),
-                Ingrediente("Zanahoria rallada", "unid", 1),
-            ],
-            precio=1500,
-            icono_path="IMG/icono_ensaladamixta_64x64.png",
-        ),
+            precio=800,
+            icono_path="IMG/icono_empanada_queso_64x64.png",
+        )
     ]
