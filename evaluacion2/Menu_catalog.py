@@ -43,7 +43,7 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Papas", "unid", 5),
             ],
             precio=500,
-            icono_path="IMG/icono_papasfritas_64x64.png",
+            icono_path="IMG/icono_papas_fritas_64x64.png",
         ),
 
 
@@ -55,7 +55,7 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Churrasco de carne", "unid", 1),
             ],
             precio=3500,
-            icono_path="IMG/icono_hamburguesa_64x64.png",
+            icono_path="IMG/icono_hamburguesa_negra_64x64.png",
         ),
 
         CrearMenu(

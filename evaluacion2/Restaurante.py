@@ -153,6 +153,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.pdf_frame_carta.pack(expand=True, fill="both", padx=10, pady=10)
 
         self.pdf_viewer_carta = None
+        
     def generar_y_mostrar_carta_pdf(self):
         try:
             pdf_path = "carta.pdf"
