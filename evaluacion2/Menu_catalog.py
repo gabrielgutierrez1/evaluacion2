@@ -71,7 +71,7 @@ def get_default_menus() -> List[IMenu]:
         ),
 
         CrearMenu(
-            "empanada de queso",
+            "Empanada de queso",
             [
                 Ingrediente("masa de empanada","unid", 1),
                 Ingrediente("queso","unid", 1),
