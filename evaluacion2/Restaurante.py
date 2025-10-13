@@ -82,7 +82,7 @@ class AplicacionConPestanas(ctk.CTk):
     def configurar_pestana3(self):
         label = ctk.CTkLabel(self.tab3, text="Carga de archivo CSV")
         label.pack(pady=20)
-        boton_cargar_csv = ctk.CTkButton(self.tab3, text="Cargar CSV", fg_color="#1976D2", text_color="white",command=self.cargar_csv)
+        boton_cargar_csv = ctk.CTkButton(self.tab3, text="Cargar CSV", text_color="white",command=self.cargar_csv)
 
         boton_cargar_csv.pack(pady=10)
 
@@ -258,7 +258,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.boton_ingresar.configure(command=self.ingresar_ingrediente)
         self.boton_ingresar.pack(pady=10)
 
-        self.boton_eliminar = ctk.CTkButton(frame_treeview, text="Eliminar Ingrediente", fg_color="black", text_color="white")
+        self.boton_eliminar = ctk.CTkButton(frame_treeview, text="Eliminar Ingrediente", fg_color="#B11919", text_color="white")
         self.boton_eliminar.configure(command=self.eliminar_ingrediente)
         self.boton_eliminar.pack(pady=10)
 
@@ -541,9 +541,9 @@ if __name__ == "__main__":
     from tkinter import ttk
 
     ctk.set_appearance_mode("Dark")  
-    ctk.set_default_color_theme("blue") 
+    ctk.set_default_color_theme("green") 
     ctk.set_widget_scaling(1.0)
-    ctk.set_window_scaling(1.0)
+    ctk.set_window_scaling(1.3)
 
     app = AplicacionConPestanas()
 
