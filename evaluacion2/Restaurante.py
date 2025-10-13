@@ -52,8 +52,8 @@ class AplicacionConPestanas(ctk.CTk):
 
     def on_tab_change(self):
         selected_tab = self.tabview.get()
-        if selected_tab == "carga de ingredientes":
-            print('carga de ingredientes')
+        if selected_tab == "Carga de ingredientes":
+            print('Carga de ingredientes')
         if selected_tab == "Stock":
             self.actualizar_treeview()
         if selected_tab == "Pedido":
@@ -67,7 +67,7 @@ class AplicacionConPestanas(ctk.CTk):
             print('Boleta')  
 
     def crear_pestanas(self):
-        self.tab3 = self.tabview.add("carga de ingredientes")  
+        self.tab3 = self.tabview.add("Carga de ingredientes")  
         self.tab1 = self.tabview.add("Stock")
         self.tab4 = self.tabview.add("Carta restorante")  
         self.tab2 = self.tabview.add("Pedido")
@@ -349,9 +349,43 @@ class AplicacionConPestanas(ctk.CTk):
         # usar contador para posiciones y wrap a 4 columnas
         self.menus_creados = 0
         max_cols = 4
-        for idx, menu in enumerate(self.menus):
+
+        # recargar stock para evaluar disponibilidad
+        try:
+            self.stock.cargar_desde_csv()
+        except Exception:
+            pass
+
+        # filtrar menús disponibles según el stock actual (comparación tolerante a mayúsculas/minúsculas)
+        available_menus = []
+        for menu in self.menus:
+            suficiente_stock = True
+            if not self.stock.lista_ingredientes:
+                suficiente_stock = False
+
+            for ingrediente_necesario in menu.ingredientes:
+                encontrado_y_suficiente = False
+                for ingrediente_stock in self.stock.lista_ingredientes:
+                    try:
+                        if ingrediente_necesario.nombre.strip().lower() == str(ingrediente_stock.nombre).strip().lower():
+                            try:
+                                if float(ingrediente_stock.cantidad) >= float(ingrediente_necesario.cantidad):
+                                    encontrado_y_suficiente = True
+                                    break
+                            except Exception:
+                                encontrado_y_suficiente = False
+                    except Exception:
+                        # en caso de problemas con un elemento del stock, continuar con el siguiente
+                        continue
+                if not encontrado_y_suficiente:
+                    suficiente_stock = False
+                    break
+
+            if suficiente_stock:
+                available_menus.append(menu)
+
+        for idx, menu in enumerate(available_menus):
             try:
-                # crear tarjeta y posicionar en una rejilla
                 fila = idx // max_cols
                 columna = idx % max_cols
                 self.crear_tarjeta(menu, row=fila, column=columna)
@@ -371,7 +405,92 @@ class AplicacionConPestanas(ctk.CTk):
             return
         
         nombre = valores[0]
-        self.pedido.eliminar_menu(nombre)
+        # Buscar el menú dentro del pedido para conocer sus ingredientes y cantidad
+        menu_en_pedido = None
+        for m in self.pedido.menus:
+            if m.nombre == nombre:
+                menu_en_pedido = m
+                break
+
+        # Si encontramos el menú, preguntar si se elimina todo o solo una unidad
+        if menu_en_pedido is not None:
+            try:
+                eliminar_todo = messagebox.askyesno("Eliminar Pedido", "¿Desea eliminar todo el pedido seleccionado?\n(Si NO, se eliminará solo una unidad)")
+            except Exception:
+                # en caso de que messagebox no funcione, asumir solo una unidad
+                eliminar_todo = False
+
+            # cantidad de unidades a devolver al stock (1 o la cantidad completa)
+            try:
+                cantidad_a_devolver = int(menu_en_pedido.cantidad) if eliminar_todo else 1
+            except Exception:
+                cantidad_a_devolver = 1
+
+            # devolver ingredientes multiplicados por la cantidad a devolver
+            for ingrediente_necesario in menu_en_pedido.ingredientes:
+                total_a_sumar = 0
+                try:
+                    total_a_sumar = float(ingrediente_necesario.cantidad) * float(cantidad_a_devolver)
+                except Exception:
+                    # si falla la conversión, intentar usar 1 * cantidad
+                    try:
+                        total_a_sumar = float(getattr(ingrediente_necesario, 'cantidad', 0)) * float(cantidad_a_devolver)
+                    except Exception:
+                        total_a_sumar = 0
+
+                if total_a_sumar == 0:
+                    continue
+
+                encontrado = False
+                for ingrediente_stock in self.stock.lista_ingredientes:
+                    try:
+                        if str(ingrediente_stock.nombre).strip().lower() == str(ingrediente_necesario.nombre).strip().lower():
+                            try:
+                                ingrediente_stock.cantidad = float(ingrediente_stock.cantidad) + total_a_sumar
+                            except Exception:
+                                try:
+                                    ingrediente_stock.cantidad = float(total_a_sumar)
+                                except Exception:
+                                    pass
+                            encontrado = True
+                            break
+                    except Exception:
+                        continue
+
+                # si no existe en el stock, agregarlo con la cantidad correspondiente
+                if not encontrado:
+                    try:
+                        from Ingrediente import Ingrediente as IngClass
+                        nuevo = IngClass(nombre=ingrediente_necesario.nombre, unidad=getattr(ingrediente_necesario, 'unidad', None), cantidad=total_a_sumar)
+                        self.stock.agregar_ingrediente(nuevo)
+                    except Exception:
+                        pass
+
+            # persistir cambios en CSV
+            try:
+                self.stock.actualizar_csv()
+            except Exception:
+                pass
+
+            # realizar la eliminación en el pedido: una o todas las unidades
+            try:
+                if eliminar_todo:
+                    # eliminar tantas veces como unidades existan
+                    veces = 0
+                    try:
+                        veces = int(menu_en_pedido.cantidad)
+                    except Exception:
+                        veces = 1
+                    for _ in range(max(1, veces)):
+                        self.pedido.eliminar_menu(nombre)
+                else:
+                    self.pedido.eliminar_menu(nombre)
+            except Exception:
+                # fallback: intentar una vez
+                try:
+                    self.pedido.eliminar_menu(nombre)
+                except Exception:
+                    pass
         self.actualizar_treeview_pedido()
         total = self.pedido.calcular_total()
         try:
