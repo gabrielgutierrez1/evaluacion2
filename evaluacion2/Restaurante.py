@@ -102,15 +102,23 @@ class AplicacionConPestanas(ctk.CTk):
         if 'nombre' not in self.df_csv.columns or 'cantidad' not in self.df_csv.columns:
             CTkMessagebox(title="Error", message="El CSV debe tener columnas 'nombre' y 'cantidad'.", icon="warning")
             return
-        for _, row in self.df_csv.iterrows():
+        errores = []
+        for idx, row in self.df_csv.iterrows():
             nombre = str(row['nombre'])
             cantidad = row['cantidad']
             unidad = row.get('unidad', '') if 'unidad' in row.index else ''
             ingrediente = Ingrediente(nombre=nombre,unidad=unidad,cantidad=cantidad)
-            self.stock.agregar_ingrediente(ingrediente)
+            ok, msg = self.stock.agregar_ingrediente(ingrediente)
+            if not ok:
+                errores.append(f"Fila {idx+1} ({nombre}): {msg}")
 
-        CTkMessagebox(title="Stock Actualizado", message="Ingredientes agregados al stock correctamente.", icon="check")
-        self.actualizar_treeview()   
+        if errores:
+            resumen = "\n".join(errores[:10])
+            CTkMessagebox(title="Errores al agregar CSV", message=f"Algunos ingredientes no fueron agregados:\n{resumen}", icon="warning")
+        else:
+            CTkMessagebox(title="Stock Actualizado", message="Ingredientes agregados al stock correctamente.", icon="check")
+
+        self.actualizar_treeview()
 
     def cargar_csv(self):
         file_path = filedialog.askopenfilename(
@@ -619,8 +627,11 @@ class AplicacionConPestanas(ctk.CTk):
             return
 
         ingrediente = Ingrediente(nombre=nombre, unidad=unidad if unidad else None, cantidad=cantidad_val)
-        self.stock.agregar_ingrediente(ingrediente)
-        CTkMessagebox(title="Ingrediente agregado", message=f"{nombre.capitalize()} agregado al stock.", icon="check")
+        ok, msg = self.stock.agregar_ingrediente(ingrediente)
+        if not ok:
+            CTkMessagebox(title="Error", message=msg or "No se pudo agregar el ingrediente.", icon="warning")
+        else:
+            CTkMessagebox(title="Ingrediente agregado", message=f"{nombre.capitalize()} agregado al stock.", icon="check")
     
         self.entry_nombre.delete(0, 'end')
         self.entry_cantidad.delete(0, 'end')
